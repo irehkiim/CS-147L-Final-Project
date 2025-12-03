@@ -1,9 +1,15 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function Messages() {
+  const router = useRouter();
+  const EXAMPLE_CHAT_ID = "example";
   return (
     <View style={styles.container}>
-      <View style={styles.messageBox}>
+      <Pressable
+        style={styles.messageBox}
+        onPress={() => router.push(`/messages/${EXAMPLE_CHAT_ID}`)}
+      >
         <View style={styles.boxContent}>
           <Text style={styles.emojiText}>😊</Text>
 
@@ -12,7 +18,7 @@ export default function Messages() {
             <Text style={styles.messageText}>Example Message</Text>
           </View>
         </View>
-      </View>
+      </Pressable>
     </View>
   );
 }
