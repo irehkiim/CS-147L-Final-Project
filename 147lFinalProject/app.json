@@ -16,7 +16,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.cs147l.finalproject",
       "config": {
-        "googleMapsApiKey": "AIzaSyAbhrtOuIa9Mb4xK8ZSdjtDOI-XBZJ46dE"
+        "googleMapsApiKey": "AIzaSyCecJS4d7EfBFAZYcNNB0LbWn5bq-ozPbo"
       }
     },
     "android": {
@@ -29,7 +29,7 @@
       "package": "com.cs147l.finalproject",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBc954JJS3oNfEuPDFrvwWg46dUvcRxS_8"
+          "apiKey": "AIzaSyA_YyDXdKpTf8pMSfONzsSs37KEbOhv-2k"
         }
       }
     },
