@@ -64,7 +64,6 @@ export default function Map() {
       }
 
       const allEvents: Event[] = data ?? [];
-      console.log("Events Loaded:", allEvents);
       setEvents(allEvents);
 
       return allEvents.map((event) => ({
@@ -90,7 +89,7 @@ export default function Map() {
         "postgres_changes",
         { event: "*", schema: "public", table: "events" },
         (payload) => {
-          console.log("events changed:", payload);
+          console.log("Events changed:", payload);
           fetchEvents();
         }
       )
@@ -137,6 +136,7 @@ export default function Map() {
     <View style={styles.container}>
       <MapView
         ref={mapRef}
+        key={events.length}
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={region}

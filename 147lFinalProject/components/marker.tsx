@@ -2,7 +2,6 @@ import React from "react";
 
 import { View, StyleSheet } from "react-native";
 import { Marker } from "react-native-maps";
-import Entypo from "@expo/vector-icons/Entypo";
 import { theme } from "../assets/theme";
 import { Event } from "../utils/types";
 import { getActivityStyle } from "../utils/getEventIcons";
