@@ -117,8 +117,26 @@ export default function Messages() {
       )
       .subscribe();
 
+    const participationChannel = supabase
+      .channel("chat-list-participation")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_participants",
+          filter: `user_id=eq.${CURRENT_USER_ID}`,
+        },
+        () => {
+          console.log("Joined new chat! Refreshing list...");
+          fetchUserChats();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(participationChannel);
     };
   }, []);
   if (loading) {
@@ -161,6 +179,7 @@ const styles = StyleSheet.create({
   },
   flatListContent: {
     paddingVertical: 5,
+    gap: 10,
     paddingHorizontal: 5,
     flexGrow: 1,
   },
@@ -172,6 +191,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     borderRadius: "8%",
     paddingVertical: 20,
+    // borderWidth: 3,
   },
   boxContent: {
     flexDirection: "row",

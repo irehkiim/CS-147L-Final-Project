@@ -233,6 +233,29 @@ export default function CreateActivity() {
         throw error;
       }
 
+      console.log("Event created, initializing chat room...");
+
+      const { data: chatData, error: chatError } = await supabase
+        .from("chats")
+        .insert({
+          event_id: data.id,
+        })
+        .select()
+        .single();
+
+      if (chatError) throw chatError;
+
+      const { error: participantError } = await supabase
+        .from("chat_participants")
+        .insert({
+          chat_id: chatData.id,
+          user_id: CURRENT_USER_ID,
+        });
+
+      if (participantError) throw participantError;
+
+      console.log("Chat room created and creator added!");
+
       console.log("Activity created successfully:", data);
 
       Alert.alert("Success", "Activity created successfully!", [

@@ -20,22 +20,37 @@ interface Message {
   created_at: string;
 }
 
+interface ProfileMap {
+  [userId: string]: string;
+}
+
 const CURRENT_USER_ID = "test_user_id_A";
-const MessageBubble = ({ text, isMe }: { text: string; isMe: boolean }) => (
-  <View
-    style={[
-      styles.messageBubble,
-      isMe ? styles.myMessage : styles.theirMessage,
-    ]}
-  >
-    <Text
+const MessageBubble = ({
+  text,
+  isMe,
+  senderName,
+}: {
+  text: string;
+  isMe: boolean;
+  senderName: string;
+}) => (
+  <View style={{ alignItems: isMe ? "flex-end" : "flex-start" }}>
+    <View
       style={[
-        styles.messageText,
-        isMe ? { color: "white" } : { color: "black" },
+        styles.messageBubble,
+        isMe ? styles.myMessage : styles.theirMessage,
       ]}
     >
-      {text}
-    </Text>
+      <Text
+        style={[
+          styles.messageText,
+          isMe ? { color: "white" } : { color: "black" },
+        ]}
+      >
+        {text}
+      </Text>
+    </View>
+    {!isMe && <Text style={styles.senderNameText}>{senderName}</Text>}
   </View>
 );
 export default function ChatRoom() {
@@ -46,6 +61,8 @@ export default function ChatRoom() {
   const [inputText, setInputText] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [groupName, setGroupName] = useState("Loading Chat...");
+  const [memberCount, setMemberCount] = useState(0);
+  const [profilesMap, setProfilesMap] = useState<ProfileMap>({});
   const [loading, setLoading] = useState(true);
 
   const fetchChatData = async () => {
@@ -60,7 +77,9 @@ export default function ChatRoom() {
     if (messagesError) {
       console.error("Error fetching messages:", messagesError);
     } else {
-      setMessages(messagesData as Message[]);
+      const msgs = messagesData as Message[];
+      setMessages(msgs);
+      fetchUserNames(msgs);
     }
 
     const { data: chatData, error: chatError } = await supabase
@@ -84,7 +103,50 @@ export default function ChatRoom() {
       }
     }
 
+    const { count, error: countError } = await supabase
+      .from("chat_participants")
+      .select("*", { count: "exact", head: true })
+      .eq("chat_id", chat_id);
+
+    if (!countError) {
+      setMemberCount(count || 0);
+    }
+
     setLoading(false);
+  };
+
+  const fetchUserNames = async (msgs: Message[]) => {
+    // 1. Get all unique user_ids from the messages
+    const userIds = Array.from(new Set(msgs.map((m) => m.user_id)));
+
+    // 2. Filter out IDs we already know
+    const unknownIds = userIds.filter((id) => !profilesMap[id]);
+
+    if (unknownIds.length === 0) return; // Nothing new to fetch
+
+    // 3. Fetch profiles from Supabase
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("user_id, name")
+      .in("user_id", unknownIds);
+
+    if (error) {
+      console.error("Error fetching profiles:", error);
+      return;
+    }
+
+    // 4. Update the map
+    const newMap = { ...profilesMap };
+    data.forEach((profile: any) => {
+      newMap[profile.user_id] = profile.name;
+    });
+
+    // Add fallback for any IDs not found in profiles table
+    unknownIds.forEach((id) => {
+      if (!newMap[id]) newMap[id] = "Unknown User";
+    });
+
+    setProfilesMap((prev) => ({ ...prev, ...newMap }));
   };
 
   useEffect(() => {
@@ -102,17 +164,39 @@ export default function ChatRoom() {
           table: "messages",
           filter: `chat_id=eq.${chat_id}`,
         },
-        (payload) => {
-          console.log("New message received!", payload.new);
+        async (payload) => {
+          // console.log("New message received!", payload.new);
           const newMessage = payload.new as Message;
 
           setMessages((currentMessages) => [...currentMessages, newMessage]);
+          await fetchUserNames([newMessage]);
+        }
+      )
+      .subscribe();
+
+    const participantChannel = supabase
+      .channel("realtime-participants")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "chat_participants",
+          filter: `chat_id=eq.${chat_id}`,
+        },
+        () => {
+          supabase
+            .from("chat_participants")
+            .select("*", { count: "exact", head: true })
+            .eq("chat_id", chat_id)
+            .then(({ count }) => setMemberCount(count || 0));
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(participantChannel);
     };
   }, [chat_id]);
 
@@ -157,6 +241,7 @@ export default function ChatRoom() {
         </Pressable>
         <View style={styles.chatTitle}>
           <Text style={styles.titleText}>{groupName}</Text>
+          <Text style={styles.memberCountText}>{memberCount} member(s)</Text>
         </View>
       </View>
 
@@ -180,6 +265,7 @@ export default function ChatRoom() {
             <MessageBubble
               text={message.content}
               isMe={message.user_id === CURRENT_USER_ID}
+              senderName={profilesMap[message.user_id] || "Loading..."}
             />
           </View>
         ))}
@@ -290,5 +376,17 @@ const styles = StyleSheet.create({
   center: {
     justifyContent: "center",
     alignItems: "center",
+  },
+  memberCountText: {
+    fontSize: 12,
+    fontFamily: "Poppins-Regular",
+    color: "#666",
+    marginTop: -5,
+  },
+  senderNameText: {
+    fontSize: 10,
+    color: "#666",
+    marginTop: 4,
+    fontFamily: "Poppins-Regular",
   },
 });
